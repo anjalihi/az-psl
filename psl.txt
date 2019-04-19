@@ -1,0 +1,63 @@
+# Create user name and pwd variables
+USERNAME=azureuser
+PASSWORD=$(openssl rand -base64 32)
+
+# Create new VM
+az vm create \
+  --name myVM \
+  --resource-group 70118245-0e49-4a8f-b60f-9ff1968f7e8c \
+  --image Win2016Datacenter \
+  --size Standard_DS2_v2 \
+  --location eastus \
+  --admin-username $USERNAME \
+  --admin-password $PASSWORD
+  
+# Check VM status
+ az vm get-instance-view \
+  --name myVM \
+  --resource-group 70118245-0e49-4a8f-b60f-9ff1968f7e8c \
+  --output table
+  
+# Install and configure IIS
+az vm extension set \
+  --resource-group 70118245-0e49-4a8f-b60f-9ff1968f7e8c \
+  --vm-name myVM \
+  --name CustomScriptExtension \
+  --publisher Microsoft.Compute \
+  --settings "{'fileUris':['https://raw.githubusercontent.com/MicrosoftDocs/mslearn-welcome-to-azure/master/configure-iis.ps1']}" \
+  --protected-settings "{'commandToExecute': 'powershell -ExecutionPolicy Unrestricted -File configure-iis.ps1'}"
+  
+# Here's what was in the configure-iis.psl
+# Install IIS.
+dism /online /enable-feature /featurename:IIS-WebServerRole
+# Set the home page.
+Set-Content `
+  -Path "C:\\inetpub\\wwwroot\\Default.htm" `
+  -Value "<html><body><h2>Welcome to Azure! My name is $($env:computername).</h2></body></html>"
+  
+# To open port on VM
+az vm open-port \
+  --name myVM \
+  --resource-group 70118245-0e49-4a8f-b60f-9ff1968f7e8c \
+  --port 80
+  
+# Verify the configuration
+az vm show \
+  --name myVM \
+  --resource-group 70118245-0e49-4a8f-b60f-9ff1968f7e8c \
+  --show-details \
+  --query [publicIps] \
+  --output tsv
+
+# To scale up VM from DS2 to DS3
+az vm resize \
+  --resource-group 70118245-0e49-4a8f-b60f-9ff1968f7e8c \
+  --name myVM \
+  --size Standard_DS3_v2
+  
+# To check new size
+az vm show \
+  --resource-group 70118245-0e49-4a8f-b60f-9ff1968f7e8c \
+  --name myVM \
+  --query "hardwareProfile" \
+  --output tsv
